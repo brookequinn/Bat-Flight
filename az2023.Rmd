@@ -1,0 +1,244 @@
+---
+title: "AZ 2022 field season summary"
+date: "27 June 2023"
+author: "Brooke Quinn"
+output: 
+  html_document:
+    theme: 'yeti'
+    toc: true
+    toc_float:
+      collapsed: false
+---
+
+```{r setup, load packages and data, warning = FALSE, include = FALSE}
+require(dplyr)
+require(plyr)
+require(tidyverse)
+require(ggplot2)
+require(RColorBrewer)
+require(reshape2)
+require(knitr)
+
+setwd("C:/Users/brook/OneDrive/Documents/BrownPhD/SwartzLab/Arizona")
+datF <- read.csv('az2023Trials_bq1.csv')
+#datP <- read.csv('az2022summaryphan_20220602.csv')
+
+```
+
+```{r mess around with data, include = FALSE}
+### Fastecs ###
+# Subset only highest quality videos
+
+#bestFas <- subset(datF, quality == "1")
+
+# Create categorical version of quality 1 2 3 levels
+# datF_cat <- within(datF, {   
+#   quality.cat <- NA # need to initialize variable
+#   quality.cat[quality == "1"] <- "High"
+#   quality.cat[quality == "2"] <- "Good"
+#   quality.cat[quality == "3"] <- "Trash"
+#    } )
+
+# count up number of high quality videos per species
+# df <- bestFas %>% 
+#   group_by(sp1) %>%
+#   dplyr::summarise(counts = n())
+# 
+# # count up number of high quality videos and proportion of flight types per species
+# df_flight <- bestFas %>% 
+#   group_by(sp1, flight) %>%
+#   dplyr::summarise(counts = n()) 
+# 
+# # create totals of high quality vids at each quality level per species
+# datF_totals <- datF_cat %>%
+#   group_by(sp1, quality.cat) %>%
+#   dplyr::summarise(counts = n())
+# 
+# # Add percentage column for video quality percentage by species
+# datF_comp <- datF_totals[datF_totals$sp1 != '-', ] #subset only rows which have an assigned species
+# spec_tot <- datF_cat %>%
+#   dplyr::count(sp1) 
+# datF_per <- merge(datF_comp, spec_tot, by = "sp1") %>%
+#   mutate(per = (counts/n) * 100)
+
+# Add percentage column for flight behavior percentage by species
+bestFas_totals <- bestFas %>%
+  group_by(sp1, flight) %>%
+  dplyr::summarise(counts = n())
+df_flight_comp <- bestFas_totals[bestFas_totals$flight != '-', ] #subset only rows which have an assigned species
+flight_tot <- bestFas %>%
+  dplyr::count(sp1)
+df_flight_per <- merge(df_flight_comp, flight_tot, by = "sp1") %>%
+  mutate(per = (counts/n) * 100)
+
+
+# Add percentage column for flight behavior percentage by species (not quality sorted)
+Fas_totals <- datF %>%
+  group_by(sp1, flight) %>%
+  dplyr::summarise(counts = n())
+df_flight_comp <- Fas_totals[Fas_totals$flight != '-', ] #subset only rows which have an assigned species
+flight_tot <- datF %>%
+  dplyr::count(sp1)
+df_flight_per <- merge(df_flight_comp, flight_tot, by = "sp1") %>%
+  mutate(per = (counts/n) * 100)
+
+
+### Phantoms ###
+# Subset only highest quality videos
+bestPhan <- subset(datP, quality == "1")
+
+# Create categorical version of quality 1 2 3 levels
+datP_cat <- within(datP, {   
+  quality.cat <- NA # need to initialize variable
+  quality.cat[quality == "1"] <- "High"
+  quality.cat[quality == "2"] <- "Good"
+   } )
+
+dp <- bestPhan %>% 
+  group_by(sp1) %>%
+  dplyr::summarise(counts = n()) # count up number of videos per species (high quality vids)
+
+dp_flight <- bestPhan %>% 
+  group_by(sp1, flight) %>%
+  dplyr::summarise(counts = n()) # count up number of videos and prop of flight types per species (high quality vids)
+
+datP_totals <- datP_cat %>%
+  group_by(sp1, quality.cat) %>%
+  dplyr::summarise(counts = n())
+```
+
+```{r plot fastec counts, echo = FALSE, fig.width = 8}
+#Fastec video counts
+
+ggplot(df, aes(x = sp1, y = counts)) +
+  geom_bar(fill = "mistyrose3", stat = "identity") +
+  geom_text(aes(label = counts), vjust = -0.3) +
+  ggtitle("High quality video counts by species (Fastec)") +
+  xlab("Species") +
+  ylab("Number of videos (quality = 1)")
+```
+```{r plot fastec counts, echo = FALSE, fig.width = 8}
+#Fastec video counts, without quality groupings
+
+ggplot(df_flight_per, aes(x = sp1, y = counts)) +
+  geom_bar(fill = "mistyrose3", stat = "identity") +
+  geom_text(aes(label = counts), vjust = -0.3) +
+  ggtitle("High quality video counts by species (Fastec)") +
+  xlab("Species") +
+  ylab("Number of videos (quality = 1)")
+```
+
+```{r plot good vids out of total vids Fastec, echo = FALSE, fig.width = 8}
+#Normalized video counts by species (Fastec)
+
+# Set levels (for colors, etc) of quality
+datF_totals$quality.cat <- as.factor(datF_totals$quality.cat)
+datF_totals$quality.cat <- factor(datF_totals$quality.cat, levels = c("High", "Good", "Trash"))
+
+
+#Plot
+ggplot(datF_totals, aes(x = sp1, y = counts, fill = quality.cat, label = counts)) +
+  geom_bar(position = "stack", stat = "identity") +
+  ggtitle("Video count by species and vid quality (Fastec)") +
+  geom_text(size = 3, position = position_stack(vjust = 0.5)) +
+  xlab("Species") +
+  ylab("Number of videos") +
+  scale_fill_brewer(
+    type = "seq",
+    palette = "RdYlGn",
+    direction = "-1",
+    aesthetics = "fill")
+```
+
+```{r same as above, plot good vids out of total vids on Fastec, but as percentages, echo = FALSE, fig.width = 8}
+
+ggplot(datF_per) + aes(sp1, per, fill=quality.cat) +
+  geom_bar(stat="identity") +
+  ylab("Percentage of species totals") +
+  xlab("Species") +
+  ggtitle("Percentage of video quality by species (Fastec)") +
+  geom_text(aes(label=paste0(sprintf("%1.1f", per),"%")),
+            position=position_stack(vjust=0.5)) +
+  scale_fill_brewer(
+    type = "seq",
+    palette = "RdYlGn",
+    direction = "-1",
+    aesthetics = "fill")
+
+
+```
+
+
+```{r plot breakdown of flight maneuvers per species totals (Fastec), echo = FALSE, fig.width = 8}
+# Stacked barplot by flight type
+ggplot(df_flight, aes(x = sp1, y = counts, fill = flight, label = counts)) +
+  geom_bar(position = "stack", stat = "identity") +
+  ggtitle("Breakdown of flight categorizations by species (Fastec)") +
+  geom_text(size = 3, position = position_stack(vjust = 0.5)) +
+  xlab("Species") +
+  ylab("Number of high quality videos (Fastec)") +
+  scale_fill_brewer(
+    type = "seq",
+    palette = "Paired",
+    direction = "-1",
+    aesthetics = "fill")
+
+```
+
+
+```{r plot breakdown of flight maneuvers per species totals as percentages (Fastec), echo = FALSE, fig.width = 8}
+# Stacked barplot by flight type, with percentages of species totals
+ggplot(df_flight_per) + aes(sp1, per, fill=flight) +
+  geom_bar(stat="identity") +
+  ylab("Percentage of high quality videos by species") +
+  xlab("Species") +
+  ggtitle("Breakdown of high quality vid flight categorizations by species (Fastec)") +
+  geom_text(aes(label=paste0(sprintf("%1.1f", per),"%")),
+            position=position_stack(vjust=0.5)) +
+  scale_fill_brewer(
+    type = "seq",
+    palette = "RdYlGn",
+    direction = "-1",
+    aesthetics = "fill")
+```
+
+
+
+
+```{r plot phantom counts, echo = FALSE, fig.width = 8}
+#Phantom video counts
+
+ggplot(dp, aes(x = sp1, y = counts)) +
+  geom_bar(fill = "darkolivegreen4", stat = "identity") +
+  geom_text(aes(label = counts), vjust = -0.3) +
+  ggtitle("High quality video counts by species (Phantom)") +
+  xlab("Species") +
+  ylab("Number of videos (quality = 1)")
+
+```
+
+
+```{r plot good vids out of total vids Phantom, echo = FALSE, fig.width = 8}
+#Normalized video counts by species (Phantom)
+
+# Set levels (for colors, etc) of quality
+datP_totals$quality.cat <- as.factor(datP_totals$quality.cat)
+datP_totals$quality.cat <- factor(datP_totals$quality.cat, levels = c("High", "Good"))
+
+
+#Plot
+ggplot(datP_totals, aes(x = sp1, y = counts, fill = quality.cat, label = counts)) +
+  geom_bar(position = "stack", stat = "identity") +
+  ggtitle("Video count by species and vid quality (Phantom)") +
+  geom_text(size = 3, position = position_stack(vjust = 0.5)) +
+  xlab("Species") +
+  ylab("Number of videos") +
+  scale_fill_brewer(
+    type = "seq",
+    palette = "Greens",
+    direction = "-1",
+    aesthetics = "fill")
+
+
+```
+
